@@ -1,7 +1,5 @@
-# Goal
-* fuck taxes!
-
 # Cardano in golang
+My goals for this repository:
 * library of cardano protocol functions and utilities (but not for a fully functional stake pool)
 * cmd-line utilities
 * utility to compile golang code into plutus core
