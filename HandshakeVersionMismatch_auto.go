@@ -2,7 +2,8 @@ package cardano
 
 import (
   "errors"
-  cbor "https://github.com/fxamacker/cbor/v2"
+  "reflect"
+  cbor "github.com/fxamacker/cbor/v2"
 )
 
 func HandshakeVersionMismatchFromUntyped(fields []interface{}) (*HandshakeVersionMismatch, error) {
@@ -10,25 +11,30 @@ func HandshakeVersionMismatchFromUntyped(fields []interface{}) (*HandshakeVersio
   if err := x.FromUntyped(fields); err != nil {
     return nil, err
   }
+  return x, nil
 }
 
 func (x *HandshakeVersionMismatch) FromUntyped(fields []interface{}) error {
-  ValidVersions, ok := fields[0].([]int)
-  if !ok {
-    return errors.New("unexpected field type for []int.ValidVersions")
+  ValidVersions, err := IntListFromUntyped(fields[0])
+  if err != nil {
+    return errors.New("unexpected field type for HandshakeVersionMismatch.ValidVersions: " + reflect.TypeOf(fields[0]).String() + " " + err.Error())
   }
   x.ValidVersions = ValidVersions
+  return nil
 }
 
 func (x *HandshakeVersionMismatch) ToUntyped() []interface{} {
   d := make([]interface{}, 1)
-  d[0] = x.ValidVersions.([]int)
+  {
+    var untyped interface{} = x.ValidVersions
+    d[0] = untyped
+  }
   return d
 }
 
 func HandshakeVersionMismatchFromCBOR(b []byte) (*HandshakeVersionMismatch, error) {
   d := make([]interface{}, 0)
-  err := cbor.Unmarshal(b, &d); err != nil {
+  if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
   return HandshakeVersionMismatchFromUntyped(d)
@@ -36,9 +42,9 @@ func HandshakeVersionMismatchFromCBOR(b []byte) (*HandshakeVersionMismatch, erro
 
 func (x *HandshakeVersionMismatch) ToCBOR() []byte {
   d := x.ToUntyped()
-  b, err := cbor.Marshal(d, cbor.CanonicalEncOptions())
+  b, err := cbor.Marshal(d)
   if err != nil {
-    return err
+    panic(err)
   }
   return b
 }

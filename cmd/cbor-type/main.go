@@ -42,7 +42,7 @@ func mainInternal() error {
 
 func isBuiltin(type_ string) bool {
   switch type_ {
-  case "int", "[]int", "map[int]int", "string":
+  case "Int", "String", "IntSet", "IntList", "IntToInterfMap", "Interf":
     return true
   default:
     return false
@@ -113,7 +113,8 @@ func newGolangFileBuilder(typeName string) *golangFileBuilder {
   b.ln("import (")
   b.indent()
   b.ln("\"errors\"")
-  b.ln("cbor \"https://github.com/fxamacker/cbor/v2\"")
+  b.ln("\"reflect\"")
+  b.ln("cbor \"github.com/fxamacker/cbor/v2\"")
   b.undent()
   b.ln(")")
   b.ln()
@@ -168,6 +169,7 @@ func genStruct(args []string) error {
   b.ln("  if err := x.FromUntyped(fields); err != nil {")
   b.ln("    return nil, err")
   b.ln("  }")
+  b.ln("  return x, nil")
   b.ln("}")
 
   b.ln()
@@ -183,19 +185,20 @@ func genStruct(args []string) error {
     fieldName := fieldNameType[0]
     fieldType := fieldNameType[1]
 
+    iStr := strconv.Itoa(i)
     if isBuiltin(fieldType) {
-      b.ln(fieldName, ", ok := fields[", strconv.Itoa(i), "].(", fieldType, ")")
-      b.ln("if !ok {")
-      b.ln("  return errors.New(\"unexpected field type for ", fieldType, ".", fieldName, "\")")
+      b.ln(fieldName, ", err := ", fieldType, "FromUntyped(fields[", iStr, "])")
+      b.ln("if err != nil {")
+      b.ln("  return errors.New(\"unexpected field type for ", typeName, ".", fieldName, ": \" + reflect.TypeOf(fields[", iStr, "]).String() + \" \" + err.Error())")
       b.ln("}")
 
     } else {
       if isStruct(fieldType) {
         fieldType = fieldType[1:]
       }
-      b.ln(fieldName, "Args, ok := fields[", strconv.Itoa(i), "].([]interface{})")
+      b.ln(fieldName, "Args, ok := fields[", iStr, "].([]interface{})")
       b.ln("if !ok {")
-      b.ln("  return errors.New(\"unexpected field type for ", fieldType, ".", fieldName, "\")")
+      b.ln("  return errors.New(\"unexpected field type for ", typeName, ".", fieldName, ": \" + reflect.TypeOf(fields[", iStr, "]).String())")
       b.ln("}")
       b.ln(fieldName, ", err := ", fieldType, "FromUntyped(", fieldName, "Args)")
       b.ln("if err != nil {")
@@ -205,6 +208,8 @@ func genStruct(args []string) error {
 
     b.ln("x.", fieldName, " = ", fieldName)
   }
+
+  b.ln("return nil")
   b.undent()
   b.ln("}")
   
@@ -214,16 +219,22 @@ func genStruct(args []string) error {
   b.indent()
   b.ln("d := make([]interface{}, ", strconv.Itoa(len(structFields)), ")")
   for i, structField := range structFields {
+    b.ln("{")
+    b.indent()
     fieldNameType := strings.Fields(structField) 
     fieldName := fieldNameType[0]
     fieldType := fieldNameType[1]
     if isBuiltin(fieldType) {
-      b.ln("d[", strconv.Itoa(i), "] = x.", fieldName, ".(", fieldType, ")")
+      b.ln("var untyped interface{} = x.", fieldName)
     } else {
-      b.ln("d[", strconv.Itoa(i), "] = x.ToUntyped()")
+      b.ln("var untyped interface{} = x.", fieldName, ".ToUntyped()")
     }
-    b.ln("return d")
+    b.ln("d[", strconv.Itoa(i), "] = untyped")
+    b.undent()
+    b.ln("}")
   }
+
+  b.ln("return d")
   b.undent()
   b.ln("}")
 
@@ -233,7 +244,7 @@ func genStruct(args []string) error {
   b.ln("func ", typeName, "FromCBOR(b []byte) (*", typeName, ", error) {")
   b.indent()
   b.ln("d := make([]interface{}, 0)")
-  b.ln("err := cbor.Unmarshal(b, &d); err != nil {")
+  b.ln("if err := cbor.Unmarshal(b, &d); err != nil {")
   b.ln("  return nil, err")
   b.ln("}")
   b.ln("return ", typeName, "FromUntyped(d)")
@@ -245,9 +256,9 @@ func genStruct(args []string) error {
   b.ln("func (x *", typeName, ") ToCBOR() []byte {")
   b.indent()
   b.ln("d := x.ToUntyped()")
-  b.ln("b, err := cbor.Marshal(d, cbor.CanonicalEncOptions())")
+  b.ln("b, err := cbor.Marshal(d)")
   b.ln("if err != nil {")
-  b.ln("  return err")
+  b.ln("  panic(err)")
   b.ln("}")
   b.ln("return b")
   b.undent()
@@ -270,9 +281,9 @@ func genInterface(args []string) error {
 
   b.ln("func ", interfName, "FromUntyped(fields []interface{}) (", interfName, ", error) {")
   b.indent()
-  b.ln("t, ok := fields[0].(byte)")
+  b.ln("t, ok := fields[0].(uint64)")
   b.ln("if !ok {")
-  b.ln("  return nil, errors.New(\"first field entry isn't a type byte\")")
+  b.ln("  return nil, errors.New(\"first field entry isn't an int type but \" + reflect.TypeOf(fields[0]).String())")
   b.ln("}")
   b.ln("args := fields[1:]")
   b.ln("switch t {")
@@ -293,7 +304,7 @@ func genInterface(args []string) error {
     }
   }
   b.ln("  default:")
-  b.ln("    return nil, errors.New(\"type byte out of range\")")
+  b.ln("    return nil, errors.New(\"type int out of range\")")
   b.ln("}")
   b.undent()
   b.ln("}")
@@ -306,7 +317,7 @@ func genInterface(args []string) error {
   b.ln("switch x := x_.(type) {")
   for i, implName := range implementations {
     b.ln("  case ", implName, ":")
-    b.ln("    d = append(d, byte(", strconv.Itoa(i), "))")
+    b.ln("    d = append(d, int(", strconv.Itoa(i), "))")
 
     if isStruct(implName) {
       b.ln("    d = append(d, x.ToUntyped()...)")
@@ -325,7 +336,7 @@ func genInterface(args []string) error {
   b.ln("func ", interfName, "FromCBOR(b []byte) (", interfName, ", error) {")
   b.indent()
   b.ln("d := make([]interface{}, 0)")
-  b.ln("err := cbor.Unmarshal(b, &d); err != nil {")
+  b.ln("if err := cbor.Unmarshal(b, &d); err != nil {")
   b.ln("  return nil, err")
   b.ln("}")
   b.ln("return ", interfName, "FromUntyped(d)")
@@ -337,9 +348,9 @@ func genInterface(args []string) error {
   b.ln("func ", interfName, "ToCBOR(x ", interfName, ") []byte {")
   b.indent()
   b.ln("d := ", interfName, "ToUntyped(x)")
-  b.ln("b, err := cbor.Marshal(d, cbor.CanonicalEncOptions())")
+  b.ln("b, err := cbor.Marshal(d)")
   b.ln("if err != nil {")
-  b.ln("  return err")
+  b.ln("  panic(err)")
   b.ln("}")
   b.ln("return b")
   b.undent()

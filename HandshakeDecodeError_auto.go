@@ -2,7 +2,8 @@ package cardano
 
 import (
   "errors"
-  cbor "https://github.com/fxamacker/cbor/v2"
+  "reflect"
+  cbor "github.com/fxamacker/cbor/v2"
 )
 
 func HandshakeDecodeErrorFromUntyped(fields []interface{}) (*HandshakeDecodeError, error) {
@@ -10,32 +11,39 @@ func HandshakeDecodeErrorFromUntyped(fields []interface{}) (*HandshakeDecodeErro
   if err := x.FromUntyped(fields); err != nil {
     return nil, err
   }
+  return x, nil
 }
 
 func (x *HandshakeDecodeError) FromUntyped(fields []interface{}) error {
-  Version, ok := fields[0].(int)
-  if !ok {
-    return errors.New("unexpected field type for int.Version")
+  Version, err := IntFromUntyped(fields[0])
+  if err != nil {
+    return errors.New("unexpected field type for HandshakeDecodeError.Version: " + reflect.TypeOf(fields[0]).String() + " " + err.Error())
   }
   x.Version = Version
-  Error, ok := fields[1].(string)
-  if !ok {
-    return errors.New("unexpected field type for string.Error")
+  Error, err := StringFromUntyped(fields[1])
+  if err != nil {
+    return errors.New("unexpected field type for HandshakeDecodeError.Error: " + reflect.TypeOf(fields[1]).String() + " " + err.Error())
   }
   x.Error = Error
+  return nil
 }
 
 func (x *HandshakeDecodeError) ToUntyped() []interface{} {
   d := make([]interface{}, 2)
-  d[0] = x.Version.(int)
-  return d
-  d[1] = x.Error.(string)
+  {
+    var untyped interface{} = x.Version
+    d[0] = untyped
+  }
+  {
+    var untyped interface{} = x.Error
+    d[1] = untyped
+  }
   return d
 }
 
 func HandshakeDecodeErrorFromCBOR(b []byte) (*HandshakeDecodeError, error) {
   d := make([]interface{}, 0)
-  err := cbor.Unmarshal(b, &d); err != nil {
+  if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
   return HandshakeDecodeErrorFromUntyped(d)
@@ -43,9 +51,9 @@ func HandshakeDecodeErrorFromCBOR(b []byte) (*HandshakeDecodeError, error) {
 
 func (x *HandshakeDecodeError) ToCBOR() []byte {
   d := x.ToUntyped()
-  b, err := cbor.Marshal(d, cbor.CanonicalEncOptions())
+  b, err := cbor.Marshal(d)
   if err != nil {
-    return err
+    panic(err)
   }
   return b
 }

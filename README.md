@@ -194,3 +194,22 @@ func (x *HandshakeVersionMismatch) ToCBOR() []byte {
 
 ## Epoch vs slot vs block
 An epoch contains multiple slots, but not every slot contains a block
+
+## TODO:
+* CBOR serializer/deserializer code-generator: done
+* handshake tester: done
+
+## Running cardano-node for reverse engineering
+
+### Docker image inputoutput/cardano-node
+```
+docker run -e NETWORK=testnet -it -p 3001:3001 inputoutput/cardano-node
+```
+
+### Use executable directly
+
+
+### TCP packet structure
+All TCP have the mux header as described in the network spec
+The header timestamp has an arbitrary header
+The mux packet payload is the cbor data

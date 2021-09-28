@@ -2,13 +2,14 @@ package cardano
 
 import (
   "errors"
-  cbor "https://github.com/fxamacker/cbor/v2"
+  "reflect"
+  cbor "github.com/fxamacker/cbor/v2"
 )
 
 func HandshakeMessageFromUntyped(fields []interface{}) (HandshakeMessage, error) {
-  t, ok := fields[0].(byte)
+  t, ok := fields[0].(uint64)
   if !ok {
-    return nil, errors.New("first field entry isn't a type byte")
+    return nil, errors.New("first field entry isn't an int type but " + reflect.TypeOf(fields[0]).String())
   }
   args := fields[1:]
   switch t {
@@ -26,7 +27,7 @@ func HandshakeMessageFromUntyped(fields []interface{}) (HandshakeMessage, error)
       }
       return HandshakeRefuseFromUntyped(nestedArgs)
     default:
-      return nil, errors.New("type byte out of range")
+      return nil, errors.New("type int out of range")
   }
 }
 
@@ -34,13 +35,13 @@ func HandshakeMessageToUntyped(x_ HandshakeMessage) []interface{} {
   d := make([]interface{}, 0)
   switch x := x_.(type) {
     case *HandshakeProposeVersions:
-      d = append(d, byte(0))
+      d = append(d, int(0))
       d = append(d, x.ToUntyped()...)
     case *HandshakeAcceptVersion:
-      d = append(d, byte(1))
+      d = append(d, int(1))
       d = append(d, x.ToUntyped()...)
     case HandshakeRefuse:
-      d = append(d, byte(2))
+      d = append(d, int(2))
       d = append(d, HandshakeRefuseToUntyped(x))
   }
   return d
@@ -48,7 +49,7 @@ func HandshakeMessageToUntyped(x_ HandshakeMessage) []interface{} {
 
 func HandshakeMessageFromCBOR(b []byte) (HandshakeMessage, error) {
   d := make([]interface{}, 0)
-  err := cbor.Unmarshal(b, &d); err != nil {
+  if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
   return HandshakeMessageFromUntyped(d)
@@ -56,9 +57,9 @@ func HandshakeMessageFromCBOR(b []byte) (HandshakeMessage, error) {
 
 func HandshakeMessageToCBOR(x HandshakeMessage) []byte {
   d := HandshakeMessageToUntyped(x)
-  b, err := cbor.Marshal(d, cbor.CanonicalEncOptions())
+  b, err := cbor.Marshal(d)
   if err != nil {
-    return err
+    panic(err)
   }
   return b
 }

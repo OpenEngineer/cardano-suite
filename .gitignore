@@ -1,2 +1,4 @@
 *.pdf
-./cbor-type
+cbor-type
+reveng/**
+build/**
