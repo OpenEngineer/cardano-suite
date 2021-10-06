@@ -6,7 +6,8 @@ import (
   "os"
   "time"
 
-  cardano "github.com/christianschmitz/cardano-suite"
+  "github.com/christianschmitz/cardano-suite/ledger"
+  "github.com/christianschmitz/cardano-suite/network"
 )
 
 // About
@@ -21,8 +22,8 @@ import (
 const (
   TEST_SERVER  = "relays-new.cardano-testnet.iohkdev.io" 
   DEFAULT_PORT = "3001"
-  MAGIC        = cardano.TESTNET_MAGIC
-  // MAGIC = cardano.MAINNET_MAGIC
+  MAGIC        = network.TESTNET_MAGIC
+  // MAGIC = network.MAINNET_MAGIC
 )
 
 func main() {
@@ -47,9 +48,9 @@ func mainInternal() error {
   host := args[0]
   port := args[1]
 
-  state := cardano.NewGenesisBlockChainState()
+  state := ledger.NewGenesisBlockChainState()
 
-  conn, err := cardano.NewConnection(MAGIC, host, port, state, true)
+  conn, err := network.NewConnection(MAGIC, host, port, state, true)
   if err != nil {
     return err
   }

@@ -7,7 +7,7 @@ import (
   "regexp"
   "strconv"
 
-  cardano "github.com/christianschmitz/cardano-suite"
+  "github.com/christianschmitz/cardano-suite/network"
 )
 
 func main() {
@@ -77,7 +77,7 @@ func mainInternal() error {
 func testBytes(b []byte) error {
   fmt.Println("Integers:", b)
 
-  h, _, err := cardano.SegmentHeaderFromBytes(b)
+  h, _, err := network.SegmentHeaderFromBytes(b)
   if err != nil {
     return err
   }
@@ -92,7 +92,7 @@ func testBytes(b []byte) error {
 
 func testNow() error {
   // using now
-  h := cardano.NewSegmentHeader(false, 0, 45)
+  h := network.NewSegmentHeader(false, 0, 45)
 
   return testHeader(h)
 }
@@ -103,18 +103,18 @@ func testTimestamped(arg string) error {
     return err
   }
 
-  h := cardano.NewTimestampedSegmentHeader(t64, false, 0, 45)
+  h := network.NewTimestampedSegmentHeader(t64, false, 0, 45)
 
   return testHeader(h)
 }
 
-func testHeader(h *cardano.SegmentHeader) error {
+func testHeader(h *network.SegmentHeader) error {
   h.Dump()
 
   b := h.ToBytes()
   fmt.Println("Integers':", b)
 
-  hOrig, _, err := cardano.SegmentHeaderFromBytes(b)
+  hOrig, _, err := network.SegmentHeaderFromBytes(b)
   if err != nil {
     return err
   }

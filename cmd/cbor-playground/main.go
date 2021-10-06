@@ -4,11 +4,12 @@ import (
   "fmt"
 
   cbor "github.com/fxamacker/cbor/v2"
-  cardano "github.com/christianschmitz/cardano-suite"
+
+  "github.com/christianschmitz/cardano-suite/common"
 )
 
 func main() {
-  h := cardano.NilHash()
+  h := common.NilHash()
 
   /*bList := make([]int, 8)
   for i, _ := range bList {

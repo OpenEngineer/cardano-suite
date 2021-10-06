@@ -235,3 +235,4 @@ Shortening is triggered when a certain length is exceeded.
 * Handshake tester: done
 * Connection type implementing all the Node-to-Node mini protocols
 * Remove duplicate code in mini protocols using golang generics
+* TODO: network package and ledger package

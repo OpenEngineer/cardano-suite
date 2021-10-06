@@ -6,7 +6,8 @@ import (
   "os"
   "strconv"
 
-  cardano "github.com/christianschmitz/cardano-suite"
+  "github.com/christianschmitz/cardano-suite/common"
+  "github.com/christianschmitz/cardano-suite/ledger"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func mainInternal() error {
     return errors.New("expected 4 args (prevBlockHash, slotId, blockId, body)")
   }
 
-  prevHash, err := cardano.HashFromHex(args[0])
+  prevHash, err := common.HashFromHex(args[0])
   if err != nil {
     return err
   }
@@ -37,11 +38,11 @@ func mainInternal() error {
     return err
   }
 
-  bodyHash := cardano.HashFromString(args[3])
+  bodyHash := common.HashFromString(args[3])
 
-  blockHeader := cardano.BlockHeader{
-    cardano.NilHash(),
-    cardano.ChainHash{false, prevHash},
+  blockHeader := ledger.BlockHeader{
+    common.NilHash(),
+    ledger.ChainHash{false, prevHash},
     slotId,
     blockId,
     bodyHash,

@@ -6,7 +6,9 @@ import (
   "os"
   "strconv"
 
-  cardano "github.com/christianschmitz/cardano-suite"
+  "github.com/christianschmitz/cardano-suite/common"
+  "github.com/christianschmitz/cardano-suite/ledger"
+  "github.com/christianschmitz/cardano-suite/network"
 )
 
 // TODO: make this a proper utility, whereby the several servers are tried, and the blockchain is tried
@@ -16,7 +18,7 @@ import (
 const (
   TEST_SERVER  = "relays-new.cardano-testnet.iohkdev.io" 
   DEFAULT_PORT = "3001"
-  MAGIC        = cardano.TESTNET_MAGIC
+  MAGIC        = network.TESTNET_MAGIC
 )
 
 func main() {
@@ -37,15 +39,15 @@ func mainInternal() error {
     return err
   }
 
-  headerHash, err := cardano.HashFromHex(args[1])
+  headerHash, err := common.HashFromHex(args[1])
   if err != nil {
     return err
   }
   
 
-  state := cardano.NewGenesisBlockChainState()
+  state := ledger.NewGenesisBlockChainState()
 
-  conn, err := cardano.NewConnection(MAGIC, TEST_SERVER, DEFAULT_PORT, state, true)
+  conn, err := network.NewConnection(MAGIC, TEST_SERVER, DEFAULT_PORT, state, true)
   if err != nil {
     return err
   }
@@ -55,7 +57,7 @@ func mainInternal() error {
     return err
   }
 
-  fmt.Println(cardano.ReflectUntyped(bl.Untyped))
+  fmt.Println(common.ReflectUntyped(bl.Untyped))
 
   return nil
 }

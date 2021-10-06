@@ -8,7 +8,7 @@ import (
   "strconv"
   "strings"
 
-  cardano "github.com/christianschmitz/cardano-suite"
+  "github.com/christianschmitz/cardano-suite/common"
 )
 
 func main() {
@@ -94,7 +94,7 @@ func mainInternal() error {
 
   fmt.Println(fmt.Sprintf("#Raw integers[%d]:", len(b)), b)
 
-  str, err := cardano.ReflectCBOR(b)
+  str, err := common.ReflectCBOR(b)
 
   fmt.Println(str)
 

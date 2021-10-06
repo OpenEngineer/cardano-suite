@@ -46,7 +46,7 @@ func isList(type_ string) bool {
 
 func isBuiltin(type_ string) bool {
   switch type_ {
-  case "Int", "String", "IntSet", "IntList", "IntToInterfMap", "Interf", "Uint64":
+  case "common.Int", "common.String", "common.IntSet", "common.IntList", "common.IntToInterfMap", "common.Interf", "common.Uint64":
     return true
   default:
     return false
@@ -55,7 +55,7 @@ func isBuiltin(type_ string) bool {
 
 func isPtrless(type_ string) bool {
   switch type_ {
-  case "ChainHash", "Hash":
+  case "ChainHash", "common.Hash":
     return true
   default:
     return false
@@ -128,12 +128,20 @@ func newGolangFileBuilder(typeName string) *golangFileBuilder {
   b.ln("\"errors\"")
   b.ln("\"reflect\"")
   b.ln("cbor \"github.com/fxamacker/cbor/v2\"")
+  b.ln("\"github.com/christianschmitz/cardano-suite/common\"")
+  if packName != "common" && packName != "ledger" {
+    b.ln("\"github.com/christianschmitz/cardano-suite/ledger\"")
+  }
   b.undent()
   b.ln(")")
   b.ln()
 
   // avoid the compiler "imported and not used" error
-  b.ln("func ", typeName, "DummyImportUsage() error {return errors.New(reflect.TypeOf(\"\").String())}")
+  if packName != "common" && packName != "ledger" {
+    b.ln("func ", typeName, "DummyImportUsage() error {return errors.New(reflect.TypeOf(common.Hash{}).String() + reflect.TypeOf(ledger.Block{}).String())}")
+  } else {
+    b.ln("func ", typeName, "DummyImportUsage() error {return errors.New(reflect.TypeOf(common.Hash{}).String())}")
+  }
   b.ln()
 
   return b
@@ -194,7 +202,7 @@ func genStruct(args []string) error {
   b.indent()
 
   if len(structFields) > 0 {
-    b.ln("fields, err := InterfListFromUntyped(fields_)")
+    b.ln("fields, err := common.InterfListFromUntyped(fields_)")
     b.ln("if err != nil {")
     b.ln("  return err")
     b.ln("}")
@@ -328,7 +336,7 @@ func genInterface(args []string) error {
 
   b.ln("func ", interfName, "FromUntyped(fields_ interface{}) (", interfName, ", error) {")
   b.indent()
-  b.ln("fields, err := InterfListFromUntyped(fields_)")
+  b.ln("fields, err := common.InterfListFromUntyped(fields_)")
   b.ln("if err != nil {")
   b.ln("  return nil, err")
   b.ln("}")
@@ -367,7 +375,7 @@ func genInterface(args []string) error {
     b.ln("    d = append(d, int(", strconv.Itoa(i), "))")
 
     if isStruct(implName) {
-      b.ln("    tmpLst, err := InterfListFromUntyped(x.ToUntyped())")
+      b.ln("    tmpLst, err := common.InterfListFromUntyped(x.ToUntyped())")
       b.ln("    if err != nil {")
       b.ln("      panic(\"expected []interface{} from struct to untyped\")")
       b.ln("    }")
