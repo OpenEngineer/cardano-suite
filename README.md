@@ -195,21 +195,43 @@ func (x *HandshakeVersionMismatch) ToCBOR() []byte {
 ## Epoch vs slot vs block
 An epoch contains multiple slots, but not every slot contains a block
 
+## Blockchain state
+Syncing Daedelus after a week offline takes about 50 minutes. This is slow and annoying.
+Instead we can just pick some nodes we trust to act as servers, and use them to 'vote' on the state of the blockchain. This approach completely ignores the PoS consensus mechanism of Cardano, but is probably good enough for a wallet tracking the state of the blockchain. Only block hashing is required, which can done as a scanning operation as we move through the blockchain.
+
+The connections are initiated with a number of nodes trusted by the user.
+
+Each node starts with a clean slate, and if errors occur they are added to a score.
+
+Nodes are identified by a 32 bit hash of their domain-names. Each node gets an equal weight.
+
+The local header state is kept in memory completely
+
+Each dissenting block header is also tracked.
+
+Blocks themselves are not stored.
+
+Not everything needs to be stored in memory. Only the last 10000 or so blocks, so each header can store extended meta data (i.e. a list of which nodes confirmed)
+
+Use GOB to serialize/deserialize the in-memory block state.
+Forks should also be tracked. Each fork has a pointer to a location on the main chain, the main chain is the one with the most votes for the first block.
+
+Forks are removed once their prev block is no longer in memory, or once their first block doesn't have any more votes. What about a fork of a fork?
+
+Using BlockIds is much faster than hash lookup or
+
+Block queries are performed using the main chain.
+
+The number of hot nodes changes all the time. So only count the number of hot votes.
+
+Another thread polls the main chain to download the block data.
+
+The main chain can only be shortened once its first block has been downloaded and verified.
+
+Shortening is triggered when a certain length is exceeded.
+
 ## TODO:
 * CBOR serializer/deserializer code-generator: done
-* handshake tester: done
-
-## Running cardano-node for reverse engineering
-
-### Docker image inputoutput/cardano-node
-```
-docker run -e NETWORK=testnet -it -p 3001:3001 inputoutput/cardano-node
-```
-
-### Use executable directly
-
-
-### TCP packet structure
-All TCP have the mux header as described in the network spec
-The header timestamp has an arbitrary header
-The mux packet payload is the cbor data
+* Handshake tester: done
+* Connection type implementing all the Node-to-Node mini protocols
+* Remove duplicate code in mini protocols using golang generics

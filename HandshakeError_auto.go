@@ -6,9 +6,9 @@ import (
   cbor "github.com/fxamacker/cbor/v2"
 )
 
-func HandshakeMessageDummyImportUsage() error {return errors.New(reflect.TypeOf("").String())}
+func HandshakeErrorDummyImportUsage() error {return errors.New(reflect.TypeOf("").String())}
 
-func HandshakeMessageFromUntyped(fields_ interface{}) (HandshakeMessage, error) {
+func HandshakeErrorFromUntyped(fields_ interface{}) (HandshakeError, error) {
   fields, err := InterfListFromUntyped(fields_)
   if err != nil {
     return nil, err
@@ -20,55 +20,56 @@ func HandshakeMessageFromUntyped(fields_ interface{}) (HandshakeMessage, error) 
   args := fields[1:]
   switch t {
     case 0:
-      return HandshakeProposeVersionsFromUntyped(args)
+      return HandshakeVersionMismatchFromUntyped(args)
     case 1:
-      return HandshakeAcceptVersionFromUntyped(args)
+      return HandshakeDecodeErrorFromUntyped(args)
     case 2:
-      if len(args) != 1 {
-        return nil, errors.New("expected a nested list")
-      }
-      return HandshakeErrorFromUntyped(args[0])
+      return HandshakeRefusedFromUntyped(args)
     default:
       return nil, errors.New("type int out of range")
   }
 }
 
-func HandshakeMessageToUntyped(x_ HandshakeMessage) interface{} {
+func HandshakeErrorToUntyped(x_ HandshakeError) interface{} {
   d := make([]interface{}, 0)
   switch x := x_.(type) {
-    case *HandshakeProposeVersions:
+    case *HandshakeVersionMismatch:
       d = append(d, int(0))
       tmpLst, err := InterfListFromUntyped(x.ToUntyped())
       if err != nil {
         panic("expected []interface{} from struct to untyped")
       }
       d = append(d, tmpLst...)
-    case *HandshakeAcceptVersion:
+    case *HandshakeDecodeError:
       d = append(d, int(1))
       tmpLst, err := InterfListFromUntyped(x.ToUntyped())
       if err != nil {
         panic("expected []interface{} from struct to untyped")
       }
       d = append(d, tmpLst...)
-    case HandshakeError:
+    case *HandshakeRefused:
       d = append(d, int(2))
-      d = append(d, HandshakeErrorToUntyped(x))
+      tmpLst, err := InterfListFromUntyped(x.ToUntyped())
+      if err != nil {
+        panic("expected []interface{} from struct to untyped")
+      }
+      d = append(d, tmpLst...)
   }
   var d_ interface{} = d
   return d_
 }
 
-func HandshakeMessageFromCBOR(b []byte) (HandshakeMessage, error) {
+func HandshakeErrorFromCBOR(b []byte) (HandshakeError, error) {
   d := make([]interface{}, 0)
   if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
   var d_ interface{} = d
-  return HandshakeMessageFromUntyped(d_)
+  return HandshakeErrorFromUntyped(d_)
 }
 
-func HandshakeMessageToCBOR(x HandshakeMessage) []byte {
-  d := HandshakeMessageToUntyped(x)
+func HandshakeErrorToCBOR(x HandshakeError) []byte {
+  d := HandshakeErrorToUntyped(x)
   b, err := cbor.Marshal(d)
   if err != nil {
     panic(err)

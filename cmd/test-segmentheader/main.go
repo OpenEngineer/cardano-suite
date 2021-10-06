@@ -4,6 +4,7 @@ import (
   "errors"
   "fmt"
   "os"
+  "regexp"
   "strconv"
 
   cardano "github.com/christianschmitz/cardano-suite"
@@ -15,11 +16,11 @@ func main() {
   }
 }
 
-func parseArgsAsBytes(args []string) ([]byte, error) {
+func parseArgsAsBytes(args []string, base int) ([]byte, error) {
   b := make([]byte, len(args))
 
   for i, arg := range args {
-    v, err := strconv.ParseInt(arg, 16, 64)
+    v, err := strconv.ParseInt(arg, base, 64)
     if err != nil {
       return nil, errors.New("failed to parse byte " + strconv.Itoa(i))
     }
@@ -30,11 +31,40 @@ func parseArgsAsBytes(args []string) ([]byte, error) {
   return b, nil
 }
 
+func allInts(args []string) bool {
+  re := regexp.MustCompile(`^[0-9]*$`)
+
+  for _, arg := range args {
+    if !re.MatchString(arg) {
+      return false
+    }
+  }
+
+  return true
+}
+
 func mainInternal() error {
   args := os.Args[1:]
 
   if len(args) == 8 {
-    return testBytes(args)
+    var (
+      b []byte
+      err error
+    )
+
+    if allInts(args) {
+      b, err = parseArgsAsBytes(args, 10)
+      if err != nil {
+        return err
+      }
+    } else {
+      b, err = parseArgsAsBytes(args, 16)
+      if err != nil {
+        return err
+      }
+    }
+
+    return testBytes(b)
   } else if len(args) == 0 {
     return testNow()
   } else if len(args) == 1 {
@@ -44,15 +74,10 @@ func mainInternal() error {
   }
 }
 
-func testBytes(args []string) error {
-  b, err := parseArgsAsBytes(args)
-  if err != nil {
-    return err
-  }
-
+func testBytes(b []byte) error {
   fmt.Println("Integers:", b)
 
-  h, err := cardano.MuxHeaderFromBytes(b)
+  h, _, err := cardano.SegmentHeaderFromBytes(b)
   if err != nil {
     return err
   }
@@ -67,7 +92,7 @@ func testBytes(args []string) error {
 
 func testNow() error {
   // using now
-  h := cardano.NewMuxHeader(false, 0, 45)
+  h := cardano.NewSegmentHeader(false, 0, 45)
 
   return testHeader(h)
 }
@@ -78,18 +103,18 @@ func testTimestamped(arg string) error {
     return err
   }
 
-  h := cardano.NewTimestampedMuxHeader(t64, false, 0, 45)
+  h := cardano.NewTimestampedSegmentHeader(t64, false, 0, 45)
 
   return testHeader(h)
 }
 
-func testHeader(h *cardano.MuxHeader) error {
+func testHeader(h *cardano.SegmentHeader) error {
   h.Dump()
 
   b := h.ToBytes()
   fmt.Println("Integers':", b)
 
-  hOrig, err := cardano.MuxHeaderFromBytes(b)
+  hOrig, _, err := cardano.SegmentHeaderFromBytes(b)
   if err != nil {
     return err
   }

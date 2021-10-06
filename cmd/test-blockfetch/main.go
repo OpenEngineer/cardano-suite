@@ -1,0 +1,61 @@
+package main
+
+import (
+  "errors"
+  "fmt"
+  "os"
+  "strconv"
+
+  cardano "github.com/christianschmitz/cardano-suite"
+)
+
+// TODO: make this a proper utility, whereby the several servers are tried, and the blockchain is tried
+// some kind of channel is needed to wait for the result
+// also proper error management
+
+const (
+  TEST_SERVER  = "relays-new.cardano-testnet.iohkdev.io" 
+  DEFAULT_PORT = "3001"
+  MAGIC        = cardano.TESTNET_MAGIC
+)
+
+func main() {
+  if err := mainInternal(); err != nil {
+    fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+  }
+}
+
+func mainInternal() error {
+  args := os.Args[1:]
+  
+  if len(args) != 2 {
+    return errors.New("Usage: test-blockfetch slotId headerHash")
+  }
+
+  slotId, err := strconv.ParseUint(args[0], 10, 64)
+  if err != nil {
+    return err
+  }
+
+  headerHash, err := cardano.HashFromHex(args[1])
+  if err != nil {
+    return err
+  }
+  
+
+  state := cardano.NewGenesisBlockChainState()
+
+  conn, err := cardano.NewConnection(MAGIC, TEST_SERVER, DEFAULT_PORT, state, true)
+  if err != nil {
+    return err
+  }
+
+  bl, err := conn.FetchSingleBlock(slotId, headerHash)
+  if err != nil {
+    return err
+  }
+
+  fmt.Println(cardano.ReflectUntyped(bl.Untyped))
+
+  return nil
+}

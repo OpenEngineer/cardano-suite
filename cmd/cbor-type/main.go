@@ -27,8 +27,8 @@ func autoFname(tName string) string {
 func mainInternal() error {
   args := os.Args[1:] // first is the program name, irrelevant here
 
-  if len(args) < 2 {
-    return errors.New("expected at least 2 args")
+  if len(args) < 1 {
+    return errors.New("expected at least 1 arg (" + strings.Join(os.Args, " ") + ")")
   }
 
   if isStruct(args[0]) {
@@ -40,9 +40,22 @@ func mainInternal() error {
   return nil
 }
 
+func isList(type_ string) bool {
+  return strings.HasPrefix(type_, "[]")
+}
+
 func isBuiltin(type_ string) bool {
   switch type_ {
-  case "Int", "String", "IntSet", "IntList", "IntToInterfMap", "Interf":
+  case "Int", "String", "IntSet", "IntList", "IntToInterfMap", "Interf", "Uint64":
+    return true
+  default:
+    return false
+  }
+}
+
+func isPtrless(type_ string) bool {
+  switch type_ {
+  case "ChainHash", "Hash":
     return true
   default:
     return false
@@ -119,6 +132,10 @@ func newGolangFileBuilder(typeName string) *golangFileBuilder {
   b.ln(")")
   b.ln()
 
+  // avoid the compiler "imported and not used" error
+  b.ln("func ", typeName, "DummyImportUsage() error {return errors.New(reflect.TypeOf(\"\").String())}")
+  b.ln()
+
   return b
 }
 
@@ -151,20 +168,19 @@ func (b *golangFileBuilder) close() error {
 }
 
 func genStruct(args []string) error {
-  if len(args) != 2 {
+  if len(args) != 2 && len(args) != 1 {
     return errors.New("expected exactly 2 arguments for converting struct")
   }
 
   typeName := args[0][1:]
-  structFields := strings.Split(args[1], ",")
-
-  if len(structFields) < 1 {
-    return errors.New("expected at least 1 struct field")
+  structFields := make([]string, 0)
+  if len(args) == 2 {
+    structFields = strings.Split(args[1], ",")
   }
 
   b := newGolangFileBuilder(typeName)
 
-  b.ln("func ", typeName, "FromUntyped(fields []interface{}) (*", typeName, ", error) {")
+  b.ln("func ", typeName, "FromUntyped(fields interface{}) (*", typeName, ", error) {")
   b.ln("  x := &", typeName, "{}")
   b.ln("  if err := x.FromUntyped(fields); err != nil {")
   b.ln("    return nil, err")
@@ -174,8 +190,16 @@ func genStruct(args []string) error {
 
   b.ln()
 
-  b.ln("func (x *", typeName, ") FromUntyped(fields []interface{}) error {")
+  b.ln("func (x *", typeName, ") FromUntyped(fields_ interface{}) error {")
   b.indent()
+
+  if len(structFields) > 0 {
+    b.ln("fields, err := InterfListFromUntyped(fields_)")
+    b.ln("if err != nil {")
+    b.ln("  return err")
+    b.ln("}")
+  }
+
   for i, structField := range structFields {
     fieldNameType := strings.Fields(structField) 
     if len(fieldNameType) != 2 {
@@ -186,7 +210,26 @@ func genStruct(args []string) error {
     fieldType := fieldNameType[1]
 
     iStr := strconv.Itoa(i)
-    if isBuiltin(fieldType) {
+    if isList(fieldType) {
+      // nested lists not yet supported, only non-builtin item types supported
+      itemType := fieldType[2:]
+      if strings.HasPrefix(itemType, "*") {
+        itemType = itemType[1:]
+      }
+
+      tmpListName := fieldName + "List"
+      b.ln(tmpListName,", ok := fields[", iStr, "].([]interface{})")
+      b.ln("if !ok {")
+      b.ln("  return errors.New(\"expected ", fieldType, " for ", typeName, ".", fieldName, "\")")
+      b.ln("}")
+      b.ln(fieldName, " := make(", fieldType, ", len(", tmpListName, "))")
+      b.ln("for i, item := range ", tmpListName, " {")
+      b.ln("  ", fieldName, "[i], err = ", itemType, "FromUntyped(item)")
+      b.ln("  if err != nil {")
+      b.ln("    return err")
+      b.ln("  }")
+      b.ln("}")
+    } else if isBuiltin(fieldType) || isPtrless(fieldType) {
       b.ln(fieldName, ", err := ", fieldType, "FromUntyped(fields[", iStr, "])")
       b.ln("if err != nil {")
       b.ln("  return errors.New(\"unexpected field type for ", typeName, ".", fieldName, ": \" + reflect.TypeOf(fields[", iStr, "]).String() + \" \" + err.Error())")
@@ -196,11 +239,7 @@ func genStruct(args []string) error {
       if isStruct(fieldType) {
         fieldType = fieldType[1:]
       }
-      b.ln(fieldName, "Args, ok := fields[", iStr, "].([]interface{})")
-      b.ln("if !ok {")
-      b.ln("  return errors.New(\"unexpected field type for ", typeName, ".", fieldName, ": \" + reflect.TypeOf(fields[", iStr, "]).String())")
-      b.ln("}")
-      b.ln(fieldName, ", err := ", fieldType, "FromUntyped(", fieldName, "Args)")
+      b.ln(fieldName, ", err := ", fieldType, "FromUntyped(fields[", iStr, "])")
       b.ln("if err != nil {")
       b.ln("  return err")
       b.ln("}")
@@ -215,7 +254,7 @@ func genStruct(args []string) error {
   
   b.ln()
 
-  b.ln("func (x *", typeName, ") ToUntyped() []interface{} {")
+  b.ln("func (x *", typeName, ") ToUntyped() interface{} {")
   b.indent()
   b.ln("d := make([]interface{}, ", strconv.Itoa(len(structFields)), ")")
   for i, structField := range structFields {
@@ -226,6 +265,12 @@ func genStruct(args []string) error {
     fieldType := fieldNameType[1]
     if isBuiltin(fieldType) {
       b.ln("var untyped interface{} = x.", fieldName)
+    } else if isList(fieldType){
+      b.ln("lst := make([]interface{}, len(x.", fieldName, "))")
+      b.ln("for i, item := range x.", fieldName, " {")
+      b.ln("  lst[i] = item.ToUntyped()")
+      b.ln("}")
+      b.ln("var untyped interface{} = lst")
     } else {
       b.ln("var untyped interface{} = x.", fieldName, ".ToUntyped()")
     }
@@ -234,7 +279,8 @@ func genStruct(args []string) error {
     b.ln("}")
   }
 
-  b.ln("return d")
+  b.ln("var d_ interface{} = d")
+  b.ln("return d_")
   b.undent()
   b.ln("}")
 
@@ -247,7 +293,8 @@ func genStruct(args []string) error {
   b.ln("if err := cbor.Unmarshal(b, &d); err != nil {")
   b.ln("  return nil, err")
   b.ln("}")
-  b.ln("return ", typeName, "FromUntyped(d)")
+  b.ln("var d_ interface{} = d")
+  b.ln("return ", typeName, "FromUntyped(d_)")
   b.undent()
   b.ln("}")
 
@@ -279,8 +326,12 @@ func genInterface(args []string) error {
 
   b := newGolangFileBuilder(interfName)
 
-  b.ln("func ", interfName, "FromUntyped(fields []interface{}) (", interfName, ", error) {")
+  b.ln("func ", interfName, "FromUntyped(fields_ interface{}) (", interfName, ", error) {")
   b.indent()
+  b.ln("fields, err := InterfListFromUntyped(fields_)")
+  b.ln("if err != nil {")
+  b.ln("  return nil, err")
+  b.ln("}")
   b.ln("t, ok := fields[0].(uint64)")
   b.ln("if !ok {")
   b.ln("  return nil, errors.New(\"first field entry isn't an int type but \" + reflect.TypeOf(fields[0]).String())")
@@ -296,11 +347,7 @@ func genInterface(args []string) error {
       b.ln("    if len(args) != 1 {")
       b.ln("      return nil, errors.New(\"expected a nested list\")")
       b.ln("    }")
-      b.ln("    nestedArgs, ok := args[0].([]interface{})")
-      b.ln("    if !ok {")
-      b.ln("      return nil, errors.New(\"expected a nested list\")")
-      b.ln("    }")
-      b.ln("    return ", implName, "FromUntyped(nestedArgs)")
+      b.ln("    return ", implName, "FromUntyped(args[0])")
     }
   }
   b.ln("  default:")
@@ -311,7 +358,7 @@ func genInterface(args []string) error {
 
   b.ln()
 
-  b.ln("func ", interfName, "ToUntyped(x_ ", interfName, ") []interface{} {")
+  b.ln("func ", interfName, "ToUntyped(x_ ", interfName, ") interface{} {")
   b.indent()
   b.ln("d := make([]interface{}, 0)")
   b.ln("switch x := x_.(type) {")
@@ -320,13 +367,18 @@ func genInterface(args []string) error {
     b.ln("    d = append(d, int(", strconv.Itoa(i), "))")
 
     if isStruct(implName) {
-      b.ln("    d = append(d, x.ToUntyped()...)")
+      b.ln("    tmpLst, err := InterfListFromUntyped(x.ToUntyped())")
+      b.ln("    if err != nil {")
+      b.ln("      panic(\"expected []interface{} from struct to untyped\")")
+      b.ln("    }")
+      b.ln("    d = append(d, tmpLst...)")
     } else {
       b.ln("    d = append(d, ", implName, "ToUntyped(x))")
     }
   }
   b.ln("}")
-  b.ln("return d")
+  b.ln("var d_ interface{} = d")
+  b.ln("return d_")
   b.undent()
   b.ln("}")
 
@@ -339,7 +391,8 @@ func genInterface(args []string) error {
   b.ln("if err := cbor.Unmarshal(b, &d); err != nil {")
   b.ln("  return nil, err")
   b.ln("}")
-  b.ln("return ", interfName, "FromUntyped(d)")
+  b.ln("var d_ interface{} = d")
+  b.ln("return ", interfName, "FromUntyped(d_)")
   b.undent()
   b.ln("}")
 

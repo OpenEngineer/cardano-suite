@@ -18,6 +18,24 @@ func IntFromUntyped(x_ interface{}) (int, error) {
   }
 }
 
+func Uint64FromUntyped(x_ interface{}) (uint64, error) {
+  switch x := x_.(type) {
+  case uint64:
+    return x, nil
+  default:
+    return 0, errors.New("not a uint64")
+  }
+}
+
+func InterfListFromUntyped(x_ interface{}) ([]interface{}, error) {
+  x, ok := x_.([]interface{})
+  if !ok {
+    return nil, errors.New("expected []interf{}")
+  }
+
+  return x, nil
+}
+
 func IntListFromUntyped(x_ interface{}) ([]int, error) {
   l, ok := x_.([]interface{})
   if !ok {

@@ -6,7 +6,9 @@ import (
   cbor "github.com/fxamacker/cbor/v2"
 )
 
-func HandshakeDecodeErrorFromUntyped(fields []interface{}) (*HandshakeDecodeError, error) {
+func HandshakeDecodeErrorDummyImportUsage() error {return errors.New(reflect.TypeOf("").String())}
+
+func HandshakeDecodeErrorFromUntyped(fields interface{}) (*HandshakeDecodeError, error) {
   x := &HandshakeDecodeError{}
   if err := x.FromUntyped(fields); err != nil {
     return nil, err
@@ -14,31 +16,36 @@ func HandshakeDecodeErrorFromUntyped(fields []interface{}) (*HandshakeDecodeErro
   return x, nil
 }
 
-func (x *HandshakeDecodeError) FromUntyped(fields []interface{}) error {
+func (x *HandshakeDecodeError) FromUntyped(fields_ interface{}) error {
+  fields, err := InterfListFromUntyped(fields_)
+  if err != nil {
+    return err
+  }
   Version, err := IntFromUntyped(fields[0])
   if err != nil {
     return errors.New("unexpected field type for HandshakeDecodeError.Version: " + reflect.TypeOf(fields[0]).String() + " " + err.Error())
   }
   x.Version = Version
-  Error, err := StringFromUntyped(fields[1])
+  Reason, err := StringFromUntyped(fields[1])
   if err != nil {
-    return errors.New("unexpected field type for HandshakeDecodeError.Error: " + reflect.TypeOf(fields[1]).String() + " " + err.Error())
+    return errors.New("unexpected field type for HandshakeDecodeError.Reason: " + reflect.TypeOf(fields[1]).String() + " " + err.Error())
   }
-  x.Error = Error
+  x.Reason = Reason
   return nil
 }
 
-func (x *HandshakeDecodeError) ToUntyped() []interface{} {
+func (x *HandshakeDecodeError) ToUntyped() interface{} {
   d := make([]interface{}, 2)
   {
     var untyped interface{} = x.Version
     d[0] = untyped
   }
   {
-    var untyped interface{} = x.Error
+    var untyped interface{} = x.Reason
     d[1] = untyped
   }
-  return d
+  var d_ interface{} = d
+  return d_
 }
 
 func HandshakeDecodeErrorFromCBOR(b []byte) (*HandshakeDecodeError, error) {
@@ -46,7 +53,8 @@ func HandshakeDecodeErrorFromCBOR(b []byte) (*HandshakeDecodeError, error) {
   if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
-  return HandshakeDecodeErrorFromUntyped(d)
+  var d_ interface{} = d
+  return HandshakeDecodeErrorFromUntyped(d_)
 }
 
 func (x *HandshakeDecodeError) ToCBOR() []byte {

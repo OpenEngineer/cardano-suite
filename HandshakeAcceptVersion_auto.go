@@ -6,7 +6,9 @@ import (
   cbor "github.com/fxamacker/cbor/v2"
 )
 
-func HandshakeAcceptVersionFromUntyped(fields []interface{}) (*HandshakeAcceptVersion, error) {
+func HandshakeAcceptVersionDummyImportUsage() error {return errors.New(reflect.TypeOf("").String())}
+
+func HandshakeAcceptVersionFromUntyped(fields interface{}) (*HandshakeAcceptVersion, error) {
   x := &HandshakeAcceptVersion{}
   if err := x.FromUntyped(fields); err != nil {
     return nil, err
@@ -14,31 +16,36 @@ func HandshakeAcceptVersionFromUntyped(fields []interface{}) (*HandshakeAcceptVe
   return x, nil
 }
 
-func (x *HandshakeAcceptVersion) FromUntyped(fields []interface{}) error {
+func (x *HandshakeAcceptVersion) FromUntyped(fields_ interface{}) error {
+  fields, err := InterfListFromUntyped(fields_)
+  if err != nil {
+    return err
+  }
   Version, err := IntFromUntyped(fields[0])
   if err != nil {
     return errors.New("unexpected field type for HandshakeAcceptVersion.Version: " + reflect.TypeOf(fields[0]).String() + " " + err.Error())
   }
   x.Version = Version
-  Param, err := InterfFromUntyped(fields[1])
+  Params, err := InterfFromUntyped(fields[1])
   if err != nil {
-    return errors.New("unexpected field type for HandshakeAcceptVersion.Param: " + reflect.TypeOf(fields[1]).String() + " " + err.Error())
+    return errors.New("unexpected field type for HandshakeAcceptVersion.Params: " + reflect.TypeOf(fields[1]).String() + " " + err.Error())
   }
-  x.Param = Param
+  x.Params = Params
   return nil
 }
 
-func (x *HandshakeAcceptVersion) ToUntyped() []interface{} {
+func (x *HandshakeAcceptVersion) ToUntyped() interface{} {
   d := make([]interface{}, 2)
   {
     var untyped interface{} = x.Version
     d[0] = untyped
   }
   {
-    var untyped interface{} = x.Param
+    var untyped interface{} = x.Params
     d[1] = untyped
   }
-  return d
+  var d_ interface{} = d
+  return d_
 }
 
 func HandshakeAcceptVersionFromCBOR(b []byte) (*HandshakeAcceptVersion, error) {
@@ -46,7 +53,8 @@ func HandshakeAcceptVersionFromCBOR(b []byte) (*HandshakeAcceptVersion, error) {
   if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
-  return HandshakeAcceptVersionFromUntyped(d)
+  var d_ interface{} = d
+  return HandshakeAcceptVersionFromUntyped(d_)
 }
 
 func (x *HandshakeAcceptVersion) ToCBOR() []byte {

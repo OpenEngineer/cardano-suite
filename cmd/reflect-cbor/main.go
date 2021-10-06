@@ -4,11 +4,11 @@ import (
   "errors"
   "fmt"
   "os"
-  "reflect"
+  "regexp"
   "strconv"
   "strings"
 
-  cbor "github.com/fxamacker/cbor/v2"
+  cardano "github.com/christianschmitz/cardano-suite"
 )
 
 func main() {
@@ -17,78 +17,31 @@ func main() {
   }
 }
 
-func dumpType(b *strings.Builder, x_ interface{}, indent string) {
-  switch x := x_.(type) {
-  case bool:
-    if x {
-      b.WriteString("true")
-    } else {
-      b.WriteString("false")
+func allInts(args []string) bool {
+  re := regexp.MustCompile(`^[0-9]*$`)
+
+  for _, arg := range args {
+    if !re.MatchString(arg) {
+      return false
     }
-  case uint8:
-    b.WriteString(strconv.Itoa(int(x)))
-  case uint64:
-    b.WriteString(strconv.Itoa(int(x)))
-  case int64:
-    b.WriteString(strconv.Itoa(int(x)))
-  case int:
-    b.WriteString(strconv.Itoa(int(x)))
-  case map[interface{}]interface{}:
-    b.WriteString("{")
-    b.WriteString("\n")
-    b.WriteString(indent + "  ")
-
-    n := len(x)
-    i := 0
-    for k, v := range x {
-      dumpType(b, k, indent + "  ")
-      b.WriteString(": ")
-      dumpType(b, v, indent + "  ")
-
-      if i < n - 1 {
-        b.WriteString(", ")
-      }
-      i++
-    }
-
-    b.WriteString("\n")
-    b.WriteString(indent)
-    b.WriteString("}")
-  case []interface{}:
-    b.WriteString("[")
-    b.WriteString("\n")
-    b.WriteString(indent + "  ")
-
-    for i, item := range x {
-      dumpType(b, item, indent + "  ")
-
-      if i < len(x) - 1 {
-        b.WriteString(", ")
-      }
-    }
-
-    b.WriteString("\n")
-    b.WriteString(indent)
-    b.WriteString("]")
-  case []uint8:
-    b.WriteString("[")
-    b.WriteString("\n")
-    b.WriteString(indent + "  ")
-
-    for i, item := range x {
-      dumpType(b, item, indent + "  ")
-
-      if i < len(x) - 1 {
-        b.WriteString(", ")
-      }
-    }
-
-    b.WriteString("\n")
-    b.WriteString(indent)
-    b.WriteString("]")
-  default:
-    panic("unhandled type " + reflect.TypeOf(x).String())
   }
+
+  return true
+}
+
+func parseArgsAsInts(args []string) ([]byte, error) {
+  b := make([]byte, len(args))
+
+  for i, arg := range args {
+    v, err := strconv.ParseInt(arg, 10, 64)
+    if err != nil {
+      return nil, errors.New("failed to parse byte " + strconv.Itoa(i))
+    }
+
+    b[i] = byte(v)
+  }
+
+  return b, nil
 }
 
 func parseArgsAsBytes(args []string) ([]byte, error) {
@@ -106,6 +59,16 @@ func parseArgsAsBytes(args []string) ([]byte, error) {
   return b, nil
 }
 
+func stripCommas(args []string) []string {
+  res := make([]string, len(args))
+
+  for i, arg := range args {
+    res[i] = strings.Trim(arg, ",")
+  }
+
+  return res
+}
+
 func mainInternal() error {
   args := os.Args[1:]
 
@@ -113,26 +76,32 @@ func mainInternal() error {
     return errors.New("expected at least 1 arg")
   }
 
-  b, err := parseArgsAsBytes(args)
+  var (
+    b []byte
+    err error
+  )
+  
+  args = stripCommas(args)
+
+  if allInts(args) {
+    b, err = parseArgsAsInts(args)
+  } else {
+    b, err = parseArgsAsBytes(args)
+    if err != nil {
+      return err
+    }
+  }
+
+  fmt.Println(fmt.Sprintf("#Raw integers[%d]:", len(b)), b)
+
+  str, err := cardano.ReflectCBOR(b)
+
+  fmt.Println(str)
+
   if err != nil {
     return err
   }
 
-  fmt.Println("Integers:", b)
-
-  var res interface{} = nil
-
-  if err := cbor.Unmarshal(b, &res); err != nil {
-    return err
-  }
-
-  fmt.Println("REFLECTED TYPE:")
-
-  var sb strings.Builder
-
-  dumpType(&sb, res, "")
-
-  fmt.Println(sb.String())
 
   return nil
 }

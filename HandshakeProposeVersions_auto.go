@@ -6,7 +6,9 @@ import (
   cbor "github.com/fxamacker/cbor/v2"
 )
 
-func HandshakeProposeVersionsFromUntyped(fields []interface{}) (*HandshakeProposeVersions, error) {
+func HandshakeProposeVersionsDummyImportUsage() error {return errors.New(reflect.TypeOf("").String())}
+
+func HandshakeProposeVersionsFromUntyped(fields interface{}) (*HandshakeProposeVersions, error) {
   x := &HandshakeProposeVersions{}
   if err := x.FromUntyped(fields); err != nil {
     return nil, err
@@ -14,7 +16,11 @@ func HandshakeProposeVersionsFromUntyped(fields []interface{}) (*HandshakePropos
   return x, nil
 }
 
-func (x *HandshakeProposeVersions) FromUntyped(fields []interface{}) error {
+func (x *HandshakeProposeVersions) FromUntyped(fields_ interface{}) error {
+  fields, err := InterfListFromUntyped(fields_)
+  if err != nil {
+    return err
+  }
   Versions, err := IntToInterfMapFromUntyped(fields[0])
   if err != nil {
     return errors.New("unexpected field type for HandshakeProposeVersions.Versions: " + reflect.TypeOf(fields[0]).String() + " " + err.Error())
@@ -23,13 +29,14 @@ func (x *HandshakeProposeVersions) FromUntyped(fields []interface{}) error {
   return nil
 }
 
-func (x *HandshakeProposeVersions) ToUntyped() []interface{} {
+func (x *HandshakeProposeVersions) ToUntyped() interface{} {
   d := make([]interface{}, 1)
   {
     var untyped interface{} = x.Versions
     d[0] = untyped
   }
-  return d
+  var d_ interface{} = d
+  return d_
 }
 
 func HandshakeProposeVersionsFromCBOR(b []byte) (*HandshakeProposeVersions, error) {
@@ -37,7 +44,8 @@ func HandshakeProposeVersionsFromCBOR(b []byte) (*HandshakeProposeVersions, erro
   if err := cbor.Unmarshal(b, &d); err != nil {
     return nil, err
   }
-  return HandshakeProposeVersionsFromUntyped(d)
+  var d_ interface{} = d
+  return HandshakeProposeVersionsFromUntyped(d_)
 }
 
 func (x *HandshakeProposeVersions) ToCBOR() []byte {
