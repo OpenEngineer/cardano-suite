@@ -231,8 +231,6 @@ The main chain can only be shortened once its first block has been downloaded an
 Shortening is triggered when a certain length is exceeded.
 
 ## TODO:
-* CBOR serializer/deserializer code-generator: done
-* Handshake tester: done
 * Connection type implementing all the Node-to-Node mini protocols
 * Remove duplicate code in mini protocols using golang generics
-* TODO: network package and ledger package
+* TODO: smarter cbor-type generator, or using the reflection mechanism actually

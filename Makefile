@@ -1,4 +1,4 @@
-cmds=test-cbor reflect-cbor test-segmentheader test-headerhash test-handshake test-blockfetch cbor-playground
+cmds=test-cbor reflect-cbor test-segmentheader test-headerhash test-handshake test-blockfetch playground
 
 export build = $(abspath ./build)
 
